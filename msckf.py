@@ -651,19 +651,39 @@ class MSCKF(object):
         K = K_transpose.T
 
         # Compute the error of the state.
-        ...
+        delta_x = K @ r_thin
         
         # Update the IMU state.
-        ...
+        delta_x_imu = delta_x[:21]
+
+        if (np.linalg.norm(delta_x_imu[6:9]) > 0.5 or np.linalg.norm(delta_x_imu[12:15]) > 1.0):
+            print("Update too large, update rejected!")
+            
+        dq_imu = small_angle_quaternion(delta_x_imu[:3])
+        imu_state = self.state_server.imu_state
+        imu_state.orientation = quaternion_multiplication(dq_imu, imu_state.orientation)
+        imu_state.gyro_bias += delta_x_imu[3:6]
+        imu_state.velocity += delta_x_imu[6:9]
+        imu_state.acc_bias += delta_x_imu[9:12]
+        imu_state.position += delta_x_imu[12:15]
+
+        dq_extrinsic = small_angle_quaternion(delta_x[15:18])
+        imu_state.R_imu_cam0 = to_rotation(dq_extrinsic) @ imu_state.R_imu_cam0
+        imu_state.t_cam0_imu += delta_x_imu[18:21]
 
         # Update the camera states.
-        ...
+        for i, (_, cam_state) in enumerate(self.state_server.cam_states.items()):
+            delta_x_cam = delta_x[21+i*6:27+i*6]
+            dq_cam = small_angle_quaternion(delta_x_cam[:3])
+            cam_state.orientation = quaternion_multiplication(dq_cam, cam_state.orientation)
+            cam_state.position += delta_x_cam[3:]
 
         # Update state covariance.
-        ...
+        I_KH = np.eye(len(K)) - K @ H_thin
+        state_cov = I_KH @ self.state_server.state_cov
 
         # Fix the covariance to be symmetric
-        ...
+        self.state_server.state_cov = 0.5 * (state_cov + state_cov.T)
 
     def gating_test(self, H, r, dof):
         P1 = H @ self.state_server.state_cov @ H.T
