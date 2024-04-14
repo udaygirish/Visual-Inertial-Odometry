@@ -241,8 +241,8 @@ class MSCKF(object):
         sum_linear_accel = np.zeros(3)
         
         for msg in self.imu_msg_buffer:
-            sum_angular_vel += msg.angular_vel
-            sum_linear_accel += msg.linear_accel
+            sum_angular_vel += msg.angular_velocity
+            sum_linear_accel += msg.linear_acceleration
 
         self.state_server.imu_state.gyro_bias = sum_angular_vel / len(self.imu_msg_buffer)
         # Find the gravity in the IMU frame.
@@ -253,7 +253,7 @@ class MSCKF(object):
         gravity_norm = np.linalg.norm(gravity_imu)
         
         IMUState.gravity = np.array([0., 0, -gravity_norm])
-
+ 
         # Initialize the initial orientation, so that the estimation
         # is consistent with the inertial frame.
         quat_0_i_w = from_two_vectors(gravity_imu, -IMUState.gravity)
@@ -275,7 +275,7 @@ class MSCKF(object):
         used_msg_counter = 0
         for imu_msg in self.imu_msg_buffer:
             imu_time = imu_msg.timestamp
-            if (imu_time < self.state.server.imu_state.timestamp):
+            if (imu_time < self.state_server.imu_state.timestamp):
                 used_msg_counter += 1
                 continue
             if (imu_time > time_bound):
@@ -898,7 +898,7 @@ class MSCKF(object):
 
             # Remove this camera state in the state vector.
             del self.state_server.cam_states[cam_id]
-
+ 
     def reset_state_cov(self):
         """
         Reset the state covariance.
@@ -985,6 +985,9 @@ class MSCKF(object):
         R_w_c = imu_state.R_imu_cam0 @ T_i_w.R.T
         t_c_w = imu_state.position + T_i_w.R @ imu_state.t_cam0_imu
         T_c_w = Isometry3d(R_w_c.T, t_c_w)
-
+        
+        # print("T_b_w_R:", T_b_w.R)
+        # print("T_b_w_T:", T_b_w.t)
+        # print("Items in objects:", dir(T_b_w))
         return namedtuple('vio_result', ['timestamp', 'pose', 'velocity', 'cam0_pose'])(
             time, T_b_w, body_velocity, T_c_w)

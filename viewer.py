@@ -9,9 +9,11 @@ from multiprocessing import Queue, Process
 
 
 class Viewer(object):
-    def __init__(self):
+    def __init__(self,  save_video=False, video_path=None):
         self.image_queue = Queue()
         self.pose_queue = Queue()
+        self.save_video = save_video
+        self.video_path = video_path
 
         self.view_thread = Process(target=self.view)
         self.view_thread.start()
@@ -30,6 +32,12 @@ class Viewer(object):
             
 
     def view(self):
+        # Initialize video writer if saving video
+        if self.save_video:
+            video_writer = cv2.VideoWriter(self.video_path, 
+                                            cv2.VideoWriter_fourcc(*'mp4v'), 
+                                            30, 
+                                            (1024, 768))
         pangolin.CreateWindowAndBind('Viewer', 1024, 768)
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_BLEND)
@@ -111,8 +119,18 @@ class Viewer(object):
                 dimg.Activate()
                 gl.glColor3f(1.0, 1.0, 1.0)
                 texture.RenderToViewport()
+
+            # save video
+            if self.save_video and image is not None:
+                buffer = gl.glReadPixels(0, 0, 1024, 768, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+                buffer = np.frombuffer(buffer, dtype=np.uint8).reshape((768, 1024, 3))
+                buffer = np.flip(buffer, axis=0)  # OpenGL renders upside down
+                video_writer.write(buffer)
                 
             pangolin.FinishFrame()
+        
+        if self.save_video:
+            video_writer.release()
 
 
 

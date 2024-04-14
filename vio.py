@@ -5,11 +5,12 @@ from threading import Thread
 from config import ConfigEuRoC
 from image import ImageProcessor
 from msckf import MSCKF
+from utils import *
 
 
 
 class VIO(object):
-    def __init__(self, config, img_queue, imu_queue, viewer=None):
+    def __init__(self, config, img_queue, imu_queue, viewer=None, result_path = None, save_pred_txt = True):
         self.config = config
         self.viewer = viewer
 
@@ -19,6 +20,9 @@ class VIO(object):
 
         self.image_processor = ImageProcessor(config)
         self.msckf = MSCKF(config)
+        self.result_path = result_path # Adding result path to save the features
+        self.save_pred_txt = save_pred_txt  # Save the Predicted Pose in a txt file 
+        # File format to save prediction - timestamp tx ty tz qx qy qz qw
 
         self.img_thread = Thread(target=self.process_img)
         self.imu_thread = Thread(target=self.process_imu)
@@ -26,6 +30,10 @@ class VIO(object):
         self.img_thread.start()
         self.imu_thread.start()
         self.vio_thread.start()
+
+        # Add # timestamp tx ty tz qx qy qz qw to the result file
+        with open(self.result_path, 'w') as f:
+            f.write('# timestamp tx ty tz qx qy qz qw\n')
 
     def process_img(self):
         while True:
@@ -63,6 +71,19 @@ class VIO(object):
 
             if result is not None and self.viewer is not None:
                 self.viewer.update_pose(result.cam0_pose)
+            
+            if result is not None and self.save_pred_txt:
+                self.save_features(result)
+
+    def save_features(self, result):
+        timestamp = result.timestamp
+        T = result.pose.t
+        R = result.pose.R
+        q = to_quaternion(R)
+        with open(self.result_path, 'a') as f:
+            f.write('%.12f %.12f %.12f %.12f %.12f %.12f %.12f %.12f\n' % (
+                timestamp, T[0], T[1], T[2], q[0], q[1], q[2], q[3]))
+
         
 
 
@@ -77,10 +98,14 @@ if __name__ == '__main__':
     parser.add_argument('--path', type=str, default='path/to/your/EuRoC_MAV_dataset/MH_01_easy', 
         help='Path of EuRoC MAV dataset.')
     parser.add_argument('--view', action='store_true', help='Show trajectory.')
+    parser.add_argument('--result_path', type=str, default='results/stamped_traj_estimate.txt', help='Path to save the predicted pose')
+    parser.add_argument('--save_pred', action='store_true', help='Save the predicted pose in a txt file')
+    parser.add_argument('--save_video', action='store_true', help='Save the video of the trajectory')
+    parser.add_argument('--video_path', type=str, default='output_video.mp4', help='Path to save the video')
     args = parser.parse_args()
 
     if args.view:
-        viewer = Viewer()
+        viewer = Viewer(save_video=args.save_video, video_path=args.video_path)
     else:
         viewer = None
 
@@ -93,7 +118,7 @@ if __name__ == '__main__':
     # gt_queue = Queue()
 
     config = ConfigEuRoC()
-    msckf_vio = VIO(config, img_queue, imu_queue, viewer=viewer)
+    msckf_vio = VIO(config, img_queue, imu_queue, viewer=viewer, result_path=args.result_path, save_pred_txt=args.save_pred)
 
 
     duration = float('inf')
