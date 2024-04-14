@@ -1,6 +1,7 @@
 import numpy as np
 import OpenGL.GL as gl
-import pangolin
+#import pypangolin as pangolin  # Replaced pangolin with pypangolin
+import pangolin # Using Python binded version of Pangolin
 import cv2
 
 from multiprocessing import Queue, Process
