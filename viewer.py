@@ -130,6 +130,10 @@ class Viewer(object):
             pangolin.FinishFrame()
         
         if self.save_video:
+            buffer = gl.glReadPixels(0, 0, 1024, 768, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+            buffer = np.frombuffer(buffer, dtype=np.uint8).reshape((768, 1024, 3))
+            buffer = np.flip(buffer, axis=0)  # OpenGL renders upside down
+            cv2.imwrite('imgs/last_frame.png', buffer)
             video_writer.release()
 
 

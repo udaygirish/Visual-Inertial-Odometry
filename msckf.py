@@ -101,6 +101,7 @@ class MSCKF(object):
     def __init__(self, config):
         self.config = config
         self.optimization_config = config.optimization_config
+        self.initialize_threshold = 250
 
         # IMU data buffer
         # This is buffer is used to handle the unsynchronization or
@@ -169,7 +170,7 @@ class MSCKF(object):
         self.imu_msg_buffer.append(imu_msg)
 
         if not self.is_gravity_set:
-            if len(self.imu_msg_buffer) >= 200:
+            if len(self.imu_msg_buffer) >= self.initialize_threshold:
                 self.initialize_gravity_and_bias()
                 self.is_gravity_set = True
 
@@ -316,6 +317,7 @@ class MSCKF(object):
 
         R = to_rotation(imu_state.orientation)
 
+        # F Matrix and G Matrix Calculation
         F[:3, :3] = -skew(gyro)
         F[:3, 3:6] = -np.identity(3)
         F[6:9, :3] = -R.T @ skew(acc)
@@ -391,7 +393,7 @@ class MSCKF(object):
         vel = self.state_server.imu_state.velocity
         pos = self.state_server.imu_state.position
         
-        # Compute the dq_dt, dq_dt2 in equation (1) in "MSCKF" paper
+        # Compute the dq_dt, dq_dt2 i- Implementation of Equations in "MSCKF" paper
         if gyro_norm > 1e-5:
             dq_dt = (np.cos(gyro_norm*dt/2)*np.eye(4) + 1/gyro_norm*np.sin(gyro_norm*dt/2)*Omega) @ orien
             dq_dt2 = (np.cos(gyro_norm*dt/4)*np.eye(4) + 1/gyro_norm*np.sin(gyro_norm*dt/4)*Omega) @ orien
@@ -494,7 +496,8 @@ class MSCKF(object):
         curr_feature_num = len(self.map_server)
         tracked_feature_num = 0
          
-        # add all features in the feature_msg to self.map_server
+        # add all features in the feature_msg to self.map_server 
+        # if the feature id is not there in the map server
         for feature in feature_msg.features:
             if feature.id not in self.map_server:
                 new_feature = Feature(feature.id, self.optimization_config)

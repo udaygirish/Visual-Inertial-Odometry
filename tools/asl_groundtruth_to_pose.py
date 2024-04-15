@@ -15,7 +15,7 @@ def extract(gt, out_filename):
         data = np.genfromtxt(fin, delimiter=",")
         for l in data:
             fout.write('%.12f %.12f %.12f %.12f %.12f %.12f %.12f %.12f\n' %
-                       (l[0]/(1e9*1e9), l[1], l[2], l[3], l[5], l[6], l[7], l[4]))
+                       (l[0]/1e9, l[1], l[2], l[3], l[5], l[6], l[7], l[4]))
         n = n + 1
     print('wrote ' + str(n) + ' poses to the file: ' + out_filename)
     fout.close()
