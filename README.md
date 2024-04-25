@@ -29,8 +29,11 @@ Finally once you obtain the relative poses between frames, you can obtain the od
 <ul>
 <li> Using Vision data only </li>
 <li> Using IMU data only </li>
-<li> Using Vision + IMU data </li>
+<li> Using Vision + IMU  data </li>
 </ul>
 
-![alt text](data/task.png)
+![alt text](images/task.png)
 
+
+
+Currently using IMU model from Oyster Sim.
