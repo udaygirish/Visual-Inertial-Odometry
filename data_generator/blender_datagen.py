@@ -22,6 +22,7 @@ import math
 # from scipy.spatial.transform import Rotation as R
 from lib.helpers import *
 from utils.imu_model import *   
+from tqdm import tqdm
 
 
 # Create a large plane
@@ -83,10 +84,12 @@ class SceneGenerator:
 
     # Create a Rectangular Grid of Floor planes - x and y
     def create_grid_of_floors(self, texture_paths, grid_size=(10, 10), scale=(1, 1, 1)):
-        for i in range(grid_size[0]):
+        for i in tqdm(range(grid_size[0])):
             for j in range(grid_size[1]):
                 # Create floor 
-                self.create_floor((i*2, j*2, 0), scale)
+                x = i - grid_size[0]//2
+                y = j - grid_size[1]//2
+                self.create_floor((x, y, 0), scale)
                 # print("Texture Paths: ", texture_paths[0])
                 floor_material = self.create_material(texture_paths[0])
                 # Assign material to the floor
@@ -240,7 +243,7 @@ scenegen = SceneGenerator()
 
 scenegen.delete_all_objects()
 
-temp_texture_paths = "/home/udaygirish/Projects/WPI/computer_vision/project4/p2/Visual-Inertial-Odometry/textures/blue_floor_tiles_01_diff_4k.jpg"
+temp_texture_paths = "/home/udaygirish/Projects/WPI/computer_vision/project4/p2/Visual-Inertial-Odometry/textures/aerial_rocks_02_diff_4k.jpg"
 
 texture_paths = [temp_texture_paths]*10
 
@@ -248,16 +251,19 @@ locations_list = [(0, 0, 0), (0, 2, 0), (0, 4, 0), (0, 6, 0), (0, 8, 0), (0, 10,
 scale_list = [(1,1,1)]*10
 
 
-
+print("Creating Environment")
 # scenegen.create_multiple_floors(texture_paths, locations_list, scale_list)
-scenegen.create_grid_of_floors(texture_paths, grid_size=(40, 40), scale=(1, 1, 1))
+scenegen.create_grid_of_floors(texture_paths, grid_size=(30, 30), scale=(4, 4, 1))
+
+print("Environment Created")
 
 scenegen.setup_camera() # Sets up camera with Zero Radial distortion and Calibration matrix specified by focal length
 scenegen.add_sun_light()
 
+print("Environment Setup Done")
 # # Generate a Random trajectory for the camera and save images and IMU data
 
-trajectory_time = 1000
+trajectory_time = 10000
 
 OUT_BASE_PATH =  "/home/udaygirish/Projects/WPI/computer_vision/project4/p2/Visual-Inertial-Odometry/data_t"
 RENDER_BASE_PATH = "/home/udaygirish/Projects/WPI/computer_vision/project4/p2/Visual-Inertial-Odometry/data_t/images"
@@ -271,9 +277,9 @@ trajectory_pose_csv = os.path.join(OUT_BASE_PATH, "trajectory_pose.csv")
 
 instrinsics = scenegen.get_camera_intrinsics()
 print("Calibration Matrix (K): ", instrinsics)
-global_gen_x = 0
-global_gen_y = 0
-global_gen_z = 5
+global_gen_x = 5
+global_gen_y = 5
+global_gen_z = 4
 
 global_gen_roll = 0
 global_gen_pitch = 0
@@ -400,14 +406,33 @@ with open(trajectory_pose_csv, mode='a') as file:
     writer = csv.writer(file)
     writer.writerow(["# timestamp", "tx", "ty", "tz", "qx", "qy", "qz", "qw"])
 
+angular_vel_param = 360/trajectory_time
+cam_angle_param = 0
+center_param =  (5,5,4)
+radius_param_list = [2,3,4,5]
 
 for i in range(trajectory_time):
+    k = int(i*2000/trajectory_time)
+    if k < len(radius_param_list):
+        radius_param = radius_param_list[k]
+    else:
+        radius_param = radius_param_list[-1]
+    print("Current Radius: ", radius_param)
+    temp_old_cam_angle = cam_angle_param
+
+    cam_angle_param += angular_vel_param
+
+    # Parametric angle based rotation
+    dx = radius_param * (math.cos(temp_old_cam_angle) - math.cos(cam_angle_param))
+    dy = radius_param * (math.sin(temp_old_cam_angle) - math.sin(cam_angle_param))
+    dz = 0
+
     # Move camera to a new location
     # Get random location with addition of error 
-    dx = random.uniform(-0.01, 0.2) 
-    dy = random.uniform(-0.01, 0.2)
-    #dz = random.uniform(-0.005, 0.005)
-    dz = 0
+    # dx = random.uniform(-0.01, 0.2) 
+    # dy = random.uniform(-0.01, 0.2)
+    # #dz = random.uniform(-0.005, 0.005)
+    # dz = 0
 
     pose1 = [global_gen_x, global_gen_y, global_gen_z, global_gen_roll, global_gen_pitch, global_gen_yaw]
 
