@@ -250,7 +250,7 @@ scale_list = [(1,1,1)]*10
 
 
 # scenegen.create_multiple_floors(texture_paths, locations_list, scale_list)
-scenegen.create_grid_of_floors(texture_paths, grid_size=(20, 20), scale=(1, 1, 1))
+scenegen.create_grid_of_floors(texture_paths, grid_size=(40, 40), scale=(1, 1, 1))
 
 scenegen.setup_camera() # Sets up camera with Zero Radial distortion and Calibration matrix specified by focal length
 scenegen.add_sun_light()
@@ -266,6 +266,7 @@ render_dir = "render_images"
 render_rgb_dir = "render_rgb_images"
 imu_csv =  os.path.join(OUT_BASE_PATH, "imu.csv")
 relative_pose_csv = os.path.join(OUT_BASE_PATH, "relative_pose.csv")
+trajectory_pose_csv = os.path.join(OUT_BASE_PATH, "trajectory_pose.csv")
 
 
 instrinsics = scenegen.get_camera_intrinsics()
@@ -384,14 +385,29 @@ def get_relative_pose_quaternion(pose1, pose2):
 
     return relative_pose
 
-         
+
+# timestamp tx ty tz qx qy qz qw
+with open(imu_csv, mode='a') as file:
+    writer = csv.writer(file)
+    writer.writerow(["# timestamp","ax", "ay", "az", "gx", "gy", "gz"])
+
+# timestamp tx ty tz qx qy qz qw
+with open(relative_pose_csv, mode='a') as file:
+    writer = csv.writer(file)
+    writer.writerow(["# timestamp", "tx", "ty", "tz", "qx", "qy", "qz", "qw"])
+
+with open(trajectory_pose_csv, mode='a') as file:
+    writer = csv.writer(file)
+    writer.writerow(["# timestamp", "tx", "ty", "tz", "qx", "qy", "qz", "qw"])
+
 
 for i in range(trajectory_time):
     # Move camera to a new location
     # Get random location with addition of error 
-    dx = random.uniform(-1, 2) 
-    dy = random.uniform(-1, 2)
-    dz = random.uniform(-0.5, 0.5)
+    dx = random.uniform(-0.01, 0.2) 
+    dy = random.uniform(-0.01, 0.2)
+    #dz = random.uniform(-0.005, 0.005)
+    dz = 0
 
     pose1 = [global_gen_x, global_gen_y, global_gen_z, global_gen_roll, global_gen_pitch, global_gen_yaw]
 
@@ -408,6 +424,8 @@ for i in range(trajectory_time):
     global_gen_z += dz
 
     global_gen_yaw += dyaw
+    global_gen_pitch += dpitch
+    global_gen_roll += droll
 
     global_time += 1
 
@@ -426,6 +444,12 @@ for i in range(trajectory_time):
         writer = csv.writer(file)
         writer.writerow([global_time , relative_pose[0], relative_pose[1], relative_pose[2], relative_pose[3], relative_pose[4], relative_pose[5], relative_pose[6]])
 
+    with open(trajectory_pose_csv, mode='a') as file:
+        # Write relative pose with respect to the first pose
+        writer = csv.writer(file)
+        # Convert pose2 to quaternion
+        pose2_new = convert_euler_to_quaternion(pose2[3:])
+        writer.writerow([global_time , pose2[0], pose2[1], pose2[2], pose2_new[0], pose2_new[1], pose2_new[2], pose2_new[3]])
     
     scenegen.move_camera((global_gen_x, global_gen_y, global_gen_z))
     scenegen.rotate_camera((0,0, math.radians(global_gen_yaw)))
