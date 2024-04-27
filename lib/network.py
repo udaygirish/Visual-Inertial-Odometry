@@ -13,7 +13,6 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from torchvision.datasets import MNIST
 
 # Don't generate pyc codes
 # sys.dont_write_bytecode = True
